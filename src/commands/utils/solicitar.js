@@ -11,7 +11,6 @@ module.exports = {
             .setTitle("🎯 **SOLICITAÇÃO DE SETUP**")
             .setDescription("```diff\n+ NX STORE - SETUP PROFISSIONAL +\n```\n\n**Escolha o tipo de setup que melhor se encaixa:**")
             .setColor(0x5865F2)
-            .setThumbnail("https://cdn.discordapp.com/emojis/1101201530153332856.png")
             .setFooter({ text: "✨ NX Store • Setup Profissional ✨" })
             .setTimestamp();
 
@@ -53,7 +52,7 @@ module.exports = {
             .setColor(0x9B59B6)
             .setFooter({ text: "🚀 Recomendação da equipe NX Store" });
 
-        // 🔘 Botões - Vamos usar texto simples primeiro
+        // 🔘 Botões
         const row1 = new ActionRowBuilder()
             .addComponents(
                 new ButtonBuilder()
@@ -85,8 +84,7 @@ module.exports = {
         // 🚀 Enviar
         await interaction.reply({ 
             embeds: [embedPrincipal, embedCliente, embedAmigo, embedAmbos], 
-            components: [row1, row2],
-            ephemeral: false 
+            components: [row1, row2]
         });
     }
 };
