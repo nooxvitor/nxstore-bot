@@ -13,12 +13,12 @@ const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
     name: "interactionCreate",
-async execute(interaction, client) {
-    // LOG PARA DEBUG
-    console.log(`📝 Interação recebida: ${interaction.type} | ${interaction.customId || interaction.commandName}`);
-    
+    async execute(interaction, client) {
+        // LOG PARA DEBUG
+        console.log(`🔍 [${new Date().toLocaleTimeString()}] Interação: ${interaction.type} | ID: ${interaction.customId || interaction.commandName}`);
+        
         // COMANDOS SLASH
-            if (interaction.isChatInputCommand()) {
+        if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
             if (!command) return;
             try {
@@ -36,25 +36,37 @@ async execute(interaction, client) {
         }
         
         // BOTÕES DO SETUP ORIGINAL
-        if (interaction.isButton() && interaction.customId.startsWith("setup_pro_")) {
-            console.log(`🎯 Botão setup_pro capturado: ${interaction.customId}`);
-            await handleSetupPro(interaction);
+        if (interaction.isButton() && interaction.customId.startsWith("setup_")) {
+            await handleSetup(interaction);
             return;
         }
+        
         // BOTÕES DO SETUP PROFISSIONAL
         if (interaction.isButton() && interaction.customId.startsWith("setup_pro_")) {
             await handleSetupPro(interaction);
             return;
         }
         
-        // BOTÕES DA SOLICITAÇÃO
+        // BOTÕES DA SOLICITAÇÃO (COMANDO /solicitar)
         if (interaction.isButton() && interaction.customId.startsWith("solicitar_")) {
             await handleSolicitacao(interaction, client);
             return;
         }
         
+        // BOTÕES DO PAINEL DE BOAS-VINDAS (NOVO RECURSO)
+        if (interaction.isButton() && interaction.customId.startsWith("painel_")) {
+            await handlePainelBoasVindas(interaction, client);
+            return;
+        }
+        
         // MODAIS DA SOLICITAÇÃO
         if (interaction.isModalSubmit() && interaction.customId.startsWith("modal_solicitar_")) {
+            await processarSolicitacao(interaction, client);
+            return;
+        }
+        
+        // MODAIS DO PAINEL DE BOAS-VINDAS
+        if (interaction.isModalSubmit() && interaction.customId.startsWith("modal_painel_")) {
             await processarSolicitacao(interaction, client);
             return;
         }
@@ -90,7 +102,7 @@ async function handleSetupPro(interaction) {
             await interaction.followUp({ content: "👑 **CRIANDO CARGO...**", ephemeral: false });
             const cargos = await criarCargosHierarquicos(guild);
             
-            // 3. CRIAR CATEGORIAS E CANAIS
+            // 3. CRIAR CATEGORIAS E CANAIS (INCLUINDO PAINEL DE BOAS-VINDAS)
             await interaction.followUp({ content: "🏗️ **CRIANDO ESTRUTURA...**", ephemeral: false });
             await criarEstruturaCompleta(guild, cargos, interaction.client);
             
@@ -102,7 +114,7 @@ async function handleSetupPro(interaction) {
                     { name: "👑 **ALTO ESCALÃO**", value: "• ⚡ Categoria: `PAINEL DE CONTROLE`\n• 🔐 Acesso: Administradores + Dono", inline: false },
                     { name: "🛍️ **MUNDO LOJA**", value: "• 🛒 Categoria: `LOJA NX STORE`\n• 📁 12 canais organizados\n• 👥 8 cargos de equipe", inline: false },
                     { name: "🎮 **MUNDO COMUNIDADE**", value: "• 🎲 Categoria: `COMUNIDADE NX`\n• 💬 10 canais sociais\n• 🤝 6 cargos sociais", inline: false },
-                    { name: "📊 **INFRAESTRUTURA**", value: "• 🏗️ 24 cargos criados\n• 👋 Sistema de boas-vindas\n• 🔐 Permissões automáticas", inline: false }
+                    { name: "📊 **INFRAESTRUTURA**", value: "• 🏗️ 24 cargos criados\n• 👋 **PAINEL AUTOMÁTICO DE BOAS-VINDAS**\n• 🔐 Permissões automáticas", inline: false }
                 )
                 .setColor(0x00FF00)
                 .setFooter({ text: "NX Store Professional v2.0" })
@@ -110,7 +122,7 @@ async function handleSetupPro(interaction) {
             
             await interaction.followUp({ 
                 embeds: [embedConclusao],
-                content: "🎉 **SEU SERVIDOR ESTÁ PRONTO!**\nUse `/solicitar` para começar!" 
+                content: "🎉 **SEU SERVIDOR ESTÁ PRONTO COM SISTEMA AUTOMÁTICO DE BOAS-VINDAS!**" 
             });
             
         } catch (error) {
@@ -412,6 +424,7 @@ async function criarCargosHierarquicos(guild) {
     return cargos;
 }
 
+// ========== FUNÇÃO CRIAR ESTRUTURA COMPLETA (COM PAINEL DE BOAS-VINDAS) ==========
 async function criarEstruturaCompleta(guild, cargos, client) {
     // ========== PAINEL DE CONTROLE (ALTO ESCALÃO) ==========
     const painelCategoria = await guild.channels.create({
@@ -623,9 +636,79 @@ async function criarEstruturaCompleta(guild, cargos, client) {
         type: ChannelType.GuildText,
         parent: infraCategoria.id
     });
+    
+    // ========== PAINEL DE BOAS-VINDAS AUTOMÁTICO (NOVO RECURSO) ==========
+    const canalBoasVindas = guild.channels.cache.find(c => 
+        c.name === "👋・boas-vindas" && c.type === ChannelType.GuildText
+    );
+    
+    if (canalBoasVindas) {
+        // Aguarde um pouco para garantir que o canal foi criado
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const painelBoasVindas = new EmbedBuilder()
+            .setTitle("🎊 **BEM-VINDO À NX STORE!** 🎊")
+            .setDescription("```diff\n+ ╔══════════════════════════════════╗\n+ ║    🎯 SUA JORNADA COMEÇA AQUI!    ║\n+ ╚══════════════════════════════════╝\n```")
+            .addFields(
+                { 
+                    name: "📋 **COMO PARTICIPAR DA COMUNIDADE?**", 
+                    value: "**Escolha como deseja fazer parte da nossa família:**\n\n• 👑 **CLIENTE** - Para quem quer produtos e serviços\n• 🎮 **AMIGO** - Para quem busca comunidade e diversão\n• 🌟 **AMBOS** - O melhor dos dois mundos!" 
+                },
+                { 
+                    name: "🎁 **BENEFÍCIOS EXCLUSIVOS**", 
+                    value: "```yaml\nPara TODOS os participantes:\n  ✅ Código de 20% desconto\n  ✅ Acesso a áreas exclusivas\n  ✅ Suporte personalizado\n  ✅ Eventos e sorteios\n\nBônus CLIENTE:\n  🏪 Acesso à loja virtual\n  🎫 Sistema de tickets VIP\n  📊 Dashboard personalizado\n\nBônus AMIGO:\n  🎲 Salas de jogos privadas\n  🎪 Eventos semanais\n  🤝 Networking premium\n```" 
+                },
+                { 
+                    name: "🚀 **PASSO A PASSO SIMPLES**", 
+                    value: "```bash\n1. 👇 ESCOLHA SUA CATEGORIA\n2. 📝 PREENCHA O FORMULÁRIO\n3. 🎖️ RECEBA SEUS CARGO\n4. 🎁 GANHE CÓDIGO DE DESCONTO\n5. 💬 SUA MENSAGEM APARECE AQUI!\n```" 
+                }
+            )
+            .setColor(0x9B59B6)
+            .setFooter({ 
+                text: "✨ NX Store • Sua jornada começa com um clique! ✨"
+            })
+            .setTimestamp();
+        
+        const rowBoasVindas = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId("painel_cliente")
+                    .setLabel("👑 QUERO SER CLIENTE")
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId("painel_amigo")
+                    .setLabel("🎮 QUERO SER AMIGO")
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId("painel_ambos")
+                    .setLabel("🌟 QUERO OS DOIS!")
+                    .setStyle(ButtonStyle.Danger)
+            );
+        
+        const rowInfo = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId("painel_info")
+                    .setLabel("📋 VER DETALHES COMPLETOS")
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId("painel_suporte")
+                    .setLabel("💬 FALAR COM SUPORTE")
+                    .setStyle(ButtonStyle.Secondary)
+            );
+        
+        // Envia o painel no canal de boas-vindas
+        await canalBoasVindas.send({ 
+            content: "**🎉 SEJA BEM-VINDO(A)! ESCOLHA COMO DESEJA PARTICIPAR:**",
+            embeds: [painelBoasVindas],
+            components: [rowBoasVindas, rowInfo]
+        });
+        
+        console.log("✅ Painel de boas-vindas criado automaticamente!");
+    }
 }
 
-// ========== SISTEMA DE SOLICITAÇÃO ==========
+// ========== SISTEMA DE SOLICITAÇÃO (COMANDO /solicitar) ==========
 async function handleSolicitacao(interaction, client) {
     const { customId } = interaction;
     
@@ -669,162 +752,41 @@ async function handleSolicitacao(interaction, client) {
         case "solicitar_cliente":
         case "solicitar_amigo":
         case "solicitar_ambos":
-            await iniciarSolicitacao(interaction, customId.split('_')[1]);
+            await iniciarSolicitacao(interaction, customId.split('_')[1], "comando");
             break;
     }
 }
 
-async function iniciarSolicitacao(interaction, tipo) {
-    const modal = new ModalBuilder()
-        .setCustomId(`modal_solicitar_${tipo}`)
-        .setTitle(`Solicitação - ${tipo}`);
+// ========== SISTEMA DE PAINEL DE BOAS-VINDAS (NOVO RECURSO) ==========
+async function handlePainelBoasVindas(interaction, client) {
+    const { customId } = interaction;
     
-    const indicadoInput = new TextInputBuilder()
-        .setCustomId("indicado_por")
-        .setLabel("Quem te indicou? (Opcional)")
-        .setPlaceholder("Nome ou @usuário")
-        .setStyle(TextInputStyle.Short)
-        .setRequired(false);
-    
-    const row = new ActionRowBuilder().addComponents(indicadoInput);
-    modal.addComponents(row);
-    
-    await interaction.showModal(modal);
-}
-
-async function processarSolicitacao(interaction, client) {
-    const tipo = interaction.customId.split('_')[2];
-    const indicadoPor = interaction.fields.getTextInputValue("indicado_por") || "Ninguém";
-    
-    await interaction.deferReply({ ephemeral: true });
-    
-    const codigoDesconto = `NX${Date.now().toString().slice(-6)}`;
-    
-    try {
-        const guild = interaction.guild;
-        
-        // Encontrar cargos
-        const cargoFuturoCliente = guild.roles.cache.find(r => r.name === "👑 Future Client") ||
-            await guild.roles.create({ name: "👑 Future Client", color: 0xFFD700 });
-        
-        const cargoAmigoNX = guild.roles.cache.find(r => r.name === "🎮 Amigo NX") ||
-            await guild.roles.create({ name: "🎮 Amigo NX", color: 0x5865F2 });
-        
-        // Atribuir cargos
-        const member = interaction.member;
-        if (tipo === 'cliente' || tipo === 'ambos') await member.roles.add(cargoFuturoCliente);
-        if (tipo === 'amigo' || tipo === 'ambos') await member.roles.add(cargoAmigoNX);
-        
-        // Mensagem de boas-vindas no canal
-        const canalBoasVindas = guild.channels.cache.find(c => 
-            c.name === "👋・boas-vindas" && c.type === ChannelType.GuildText
-        );
-        
-        if (canalBoasVindas) {
-            const embedBoasVindas = new EmbedBuilder()
-                .setTitle(`🎉 NOVA SOLICITAÇÃO REGISTRADA!`)
-                .setDescription(`**${interaction.user}** acabou de solicitar setup como **${tipo === 'cliente' ? '👑 Cliente' : tipo === 'amigo' ? '🎮 Amigo' : '🌟 Ambos'}**!`)
+    switch (customId) {
+        case "painel_info":
+            const embedInfoPainel = new EmbedBuilder()
+                .setTitle("📚 **INFORMAÇÕES DETALHADAS**")
+                .setDescription("**Tudo o que você precisa saber sobre a NX Store:**")
                 .addFields(
-                    { name: "📋 Tipo", value: tipo === 'cliente' ? 'Cliente (Loja)' : tipo === 'amigo' ? 'Amigo (Comunidade)' : 'Ambos', inline: true },
-                    { name: "👤 Indicado por", value: indicadoPor, inline: true },
-                    { name: "🎁 Presente", value: "Recebeu **20% de desconto**!", inline: true }
+                    { name: "🏪 **SOBRE A LOJA**", value: "• +100 produtos digitais\n• Sistema de drops semanais\n• Cashback de 5% em todas compras\n• Clube de vantagens exclusivo" },
+                    { name: "🎮 **SOBRE A COMUNIDADE**", value: "• Eventos quinzenais com prêmios\n• Torneios de jogos semanais\n• Networking com criadores\n• Área de estudos coletiva" },
+                    { name: "🎯 **POR QUE PARTICIPAR?**", value: "• Crescimento pessoal e profissional\n• Acesso a conteúdo exclusivo\n• Rede de contatos valiosa\n• Desenvolvimento de habilidades" },
+                    { name: "💰 **INVESTIMENTO**", value: "```diff\n+ CLIENTE: Acesso gratuito à comunidade\n+ AMIGO: Participação gratuita em eventos\n+ AMBOS: Todos benefícios sem custo extra\n```" },
+                    { name: "⏱️ **TEMPO DE SETUP**", value: "• Ativação imediata dos cargos\n• Setup personalizado em até 24h\n• Suporte técnico 24/7 disponível" }
                 )
-                .setColor(0x9B59B6)
-                .setFooter({ text: "Bem-vindo ao NX Store!" })
-                .setTimestamp();
+                .setColor(0x3498DB)
+                .setFooter({ text: "📞 Dúvidas? Nosso suporte responde em até 5 minutos!" });
             
-            await canalBoasVindas.send({ embeds: [embedBoasVindas] });
-        }
-        
-        // Confirmação para usuário
-        const embedSucesso = new EmbedBuilder()
-            .setTitle("✅ SOLICITAÇÃO REGISTRADA!")
-            .setDescription(`**${interaction.user.username}**, você agora faz parte da NX Store!`)
-            .addFields(
-                { name: "🎖️ Cargos Recebidos", value: tipo === 'cliente' ? '👑 Future Client' : tipo === 'amigo' ? '🎮 Amigo NX' : '👑 Future Client + 🎮 Amigo NX', inline: true },
-                { name: "🎟️ Código de Desconto", value: `\`${codigoDesconto}\``, inline: true },
-                { name: "💎 Benefício", value: "**20% OFF** em qualquer produto!", inline: false },
-                { name: "📝 Próximos Passos", value: "1. Explore os canais disponíveis\n2. Use seu código na loja\n3. Aguarde nosso contato para setup", inline: false }
-            )
-            .setColor(0x2ECC71)
-            .setFooter({ text: "Código válido por 30 dias | Uso único" });
-        
-        await interaction.editReply({ 
-            embeds: [embedSucesso],
-            content: "🎉 **CHECK O CANAL #👋・boas-vindas PARA SUA MENSAGEM!**" 
-        });
-        
-        // DM com código
-        await enviarDM(interaction.user, codigoDesconto, tipo);
-        
-        console.log(`✅ ${interaction.user.tag} solicitou como ${tipo}`);
-        
-    } catch (error) {
-        console.error("Erro solicitação:", error);
-        await interaction.editReply({ content: "❌ Erro ao processar." });
-    }
-}
-
-// ========== FUNÇÃO ENVIAR DM ==========
-async function enviarDM(user, codigoDesconto, tipo) {
-    try {
-        const tipoNome = tipo === 'cliente' ? '👑 CLIENTE' : tipo === 'amigo' ? '🎮 AMIGO' : '🌟 AMBOS';
-        const emojiTipo = tipo === 'cliente' ? '👑' : tipo === 'amigo' ? '🎮' : '🌟';
-        
-        const embedDM = new EmbedBuilder()
-            .setTitle(`${emojiTipo} **BEM-VINDO À NX STORE!** ${emojiTipo}`)
-            .setDescription(`**🎉 OLÁ ${user.username.toUpperCase()}!**\n\nSua jornada conosco está apenas começando! 🚀`)
-            .addFields(
-                { 
-                    name: "🔑 **SEU CÓDIGO EXCLUSIVO**", 
-                    value: `\`\`\`🎁\n${codigoDesconto}\n🎁\`\`\`\n**💰 USE PARA RECEBER 20% DE DESCONTO EM QUALQUER PRODUTO!**` 
-                },
-                { 
-                    name: "📝 **COMO USAR SEU CÓDIGO**", 
-                    value: "```bash\n# 1️⃣ ACESSE NOSSA LOJA\n🌐 https://nxstore.com\n\n# 2️⃣ ESCOLHA SEU PRODUTO\n🛒 Catálogo completo disponível\n\n# 3️⃣ COLE O CÓDIGO NO CHECKOUT\n📋 Campo: \"Cupom de desconto\"\n\n# 4️⃣ APROVEITE SEU DESCONTO!\n🎉 Economia garantida!\n```" 
-                },
-                { 
-                    name: "🎁 **SEUS BENEFÍCIOS COMO " + tipoNome + "**", 
-                    value: tipo === 'cliente' ? 
-                        "```diff\n+ 👑 Cargo: Future Client\n+ 🏪 Acesso completo à loja\n+ 📦 Sistema de produtos/tickets\n+ 💰 20% desconto permanente\n+ ⚡ Suporte prioritário 24/7\n+ 📊 Dashboard personalizado\n+ 🛡️ Backup automático diário\n+ 🎯 Setup profissional garantido\n```" :
-                        tipo === 'amigo' ?
-                        "```diff\n+ 🎮 Cargo: Amigo NX\n+ 💬 Acesso à comunidade VIP\n+ 🎲 Salas de jogos exclusivas\n+ 🎪 Eventos semanais especiais\n+ 📸 Área de mídia premium\n+ 🎵 Música colaborativa\n+ 🤝 Networking com equipe\n+ 🏆 Sistema de ranking\n```" :
-                        "```diff\n+ 👑 + 🎮 Ambos os cargos VIP\n+ 🏪 + 💬 Acesso TOTAL ao servidor\n+ 📦 + 🎲 Todos sistemas ativados\n+ 💰 20% desconto em compras\n+ ⚡ Configuração PRIORITÁRIA\n+ 🎯 Setup PERSONALIZADO\n+ 📞 Suporte DEDICADO 24/7\n+ 🎁 Bônus EXCLUSIVOS mensais\n```"
-                },
-                { 
-                    name: "⏳ **PRÓXIMOS PASSOS**", 
-                    value: "```bash\n# ✅ SUA MENSAGEM JÁ APARECEU\n📢 No canal #👋-boas-vindas\n\n# ⏰ AGUARDE NOSSO CONTATO\n📞 Em até 24 horas úteis\n\n# 🎨 CONFIGURE SEU SERVIDOR\n⚙️ Setup personalizado sob medida\n\n# 🚀 APROVEITE RECURSOS EXCLUSIVOS\n💡 Acesse todas as funcionalidades\n```" 
-                }
-            )
-            .setColor(0x9B59B6)
-            .setFooter({ 
-                text: "✨ NX Store • Obrigado por confiar em nós! ✨"
-            })
-            .setTimestamp();
-        
-        const rowDM = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setLabel("🛒 VER PRODUTOS")
-                    .setStyle(ButtonStyle.Link)
-                    .setURL("https://nxstore.com/produtos"),
-                new ButtonBuilder()
-                    .setLabel("🎨 MEU SETUP")
-                    .setStyle(ButtonStyle.Link)
-                    .setURL("https://nxstore.com/meu-setup"),
-                new ButtonBuilder()
-                    .setLabel("💬 SUPORTE")
-                    .setStyle(ButtonStyle.Link)
-                    .setURL("https://discord.gg/nxstore")
-            );
-        
-        await user.send({ 
-            embeds: [embedDM], 
-            components: [rowDM],
-            content: "**🎉 PARABÉNS! VOCÊ AGORA FAZ PARTE DA FAMÍLIA NX STORE! 🎉**"
-        });
-        
-    } catch (err) {
-        console.log("❌ Não foi possível enviar DM:", err);
-    }
-}
+            await interaction.reply({ embeds: [embedInfoPainel], ephemeral: true });
+            break;
+            
+        case "painel_suporte":
+            await interaction.reply({ 
+                content: "**🎫 ABRINDO TICKET DE SUPORTE...**\n\nUm de nossos atendentes entrará em contato em instantes!\n\n📞 **Canal de atendimento:** <#1463737407580147743>\n⏰ **Horário:** 24/7", 
+                ephemeral: true 
+            });
+            break;
+            
+        case "painel_cliente":
+        case "painel_amigo":
+        case "painel_ambos":
+            await iniciarSolicitacao(interaction, custom

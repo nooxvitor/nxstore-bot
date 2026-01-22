@@ -17,7 +17,7 @@ module.exports = {
                     { name: "👑 **ALTO ESCALÃO**", value: "• ⚡ Painel de Controle privado\n• 👑 Cargos administrativos\n• 📊 Sistema de monitoramento" },
                     { name: "🛍️ **MUNDO LOJA**", value: "• 🏪 Categoria Vendas/Produtos\n• 🎫 Sistema de tickets\n• 💬 Área de atendimento\n• 👥 Cargos de equipe" },
                     { name: "🎮 **MUNDO COMUNIDADE**", value: "• 🎲 Categoria Jogos/Diversão\n• 🎤 Salas de voz temáticas\n• 🎪 Eventos e mídia\n• 🤝 Cargos sociais" },
-                    { name: "📊 **INFRAESTRUTURA**", value: "• 🏗️ 20+ cargos organizados\n• 🔐 Permissões automáticas\n• 📁 Canais categorizados\n• 👋 Sistema de boas-vindas" }
+                    { name: "📊 **INFRAESTRUTURA**", value: "• 🏗️ 20+ cargos organizados\n• 🔐 Permissões automáticas\n• 📁 Canais categorizados\n• 👋 Sistema de boas-vindas AUTOMÁTICO" }
                 )
                 .setColor(0xFF0000)
                 .setFooter({ text: "Esta ação é irreversível! Crie backup se necessário." });
@@ -45,4 +45,4 @@ module.exports = {
             await interaction.editReply({ content: '❌ Erro no setup.', ephemeral: true });
         }
     }
-}
+};
